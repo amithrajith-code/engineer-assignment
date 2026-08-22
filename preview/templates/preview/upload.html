@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HRIS Import Preview</title>
+  <style>
+    body { max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; font-family: Arial, sans-serif; line-height: 1.5; }
+    h1, h2 { color: #111827; }
+    section { margin-top: 2rem; }
+    form, .summary, .notice { padding: 1rem; border: 1px solid #d1d5db; border-radius: 6px; }
+    .notice { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+    button { padding: 0.5rem 0.8rem; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.55rem; text-align: left; border-bottom: 1px solid #d1d5db; vertical-align: top; }
+    th { background: #f3f4f6; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>HRIS Import Preview</h1>
+    <p>Upload an HRIS CSV to validate and inspect it before any data is saved.</p>
+
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label for="hris_file">HRIS CSV file</label>
+      <input id="hris_file" name="hris_file" type="file" accept=".csv,text/csv">
+      <button type="submit">Analyze import</button>
+    </form>
+
+    {% if upload_error %}
+      <p class="notice" role="alert">Unable to process this file: {{ upload_error }}</p>
+    {% endif %}
+
+    {% if analysis %}
+      <section aria-labelledby="summary-heading">
+        <h2 id="summary-heading">Summary</h2>
+        <dl class="summary">
+          <dt>Total source rows</dt>
+          <dd>{{ analysis.total_source_rows }}</dd>
+          <dt>Accepted employees</dt>
+          <dd>{{ analysis.accepted_employees|length }}</dd>
+        </dl>
+      </section>
+
+      <section aria-labelledby="errors-heading">
+        <h2 id="errors-heading">Validation errors</h2>
+        {% if analysis.validation_errors %}
+          <table>
+            <thead><tr><th>Source row</th><th>Error</th></tr></thead>
+            <tbody>
+              {% for error in analysis.validation_errors %}
+                <tr><td>{{ error.source_row_number }}</td><td>{{ error.message }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No validation errors found.</p>
+        {% endif %}
+      </section>
+
+      <section aria-labelledby="roots-heading">
+        <h2 id="roots-heading">Root employees</h2>
+        {% if analysis.root_employees %}
+          <ul>
+            {% for employee in analysis.root_employees %}
+              <li>{{ employee.employee_name }} ({{ employee.employee_id }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>No root employees found.</p>
+        {% endif %}
+      </section>
+
+      <section aria-labelledby="managers-heading">
+        <h2 id="managers-heading">Managers and direct reports</h2>
+        {% if analysis.manager_summaries %}
+          <table>
+            <thead><tr><th>Manager</th><th>Employee ID</th><th>Direct reports</th></tr></thead>
+            <tbody>
+              {% for summary in analysis.manager_summaries %}
+                <tr>
+                  <td>{{ summary.manager.employee_name }}</td>
+                  <td>{{ summary.manager.employee_id }}</td>
+                  <td>{{ summary.direct_report_count }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No managers with valid direct reports found.</p>
+        {% endif %}
+      </section>
+
+      <section aria-labelledby="cycles-heading">
+        <h2 id="cycles-heading">Employees in reporting cycles</h2>
+        {% if analysis.cyclic_employees %}
+          <ul>
+            {% for employee in analysis.cyclic_employees %}
+              <li>{{ employee.employee_name }} ({{ employee.employee_id }})</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>No reporting cycles found.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+  </main>
+</body>
+</html>
